@@ -1,0 +1,314 @@
+#!/usr/bin/bash
+
+# This is a script for gereration for C/C++ files
+# Call it like: tcpp [OPTIONS] [FILENAME]
+
+# author name for files
+AUTHOR="Yannic Kitten"
+
+# regex pattern to match specific arguments
+CLASSNAMEPATTERN="[a-zA-Z_]*([a-zA-Z0-9_])?(.cpp|.h)"
+MAINFILENAMEPATTERN="[a-zA-Z_]*([a-zA-Z0-9_])?(.cpp|.c)"
+MULTIPLEFILENAMEPATTERN="[a-zA-Z_]*([a-zA-Z0-9_])@(.cpp|.c|.h)"
+
+# getting commandline
+argc=$#
+argv=("$@")
+
+# flags default initialisation
+C_style=no
+force_overwrite=no
+
+# lists for files to create
+class_list_len=0
+class_list=""
+main_list_len=0
+main_list=""
+multiple_list_len=0
+multiple_list=""
+
+function exit_msg {
+    # print error message and exits programm with given exitcode or 1
+    echo -e "\033[1;31m ERROR:\033[0m $1"
+    echo -e "        Try option '--help' for more information"
+    exitcode=$2
+    exit ${exitcode:-1}
+}
+
+function warning_msg {
+    # print warningmessage without exiting
+    echo -e "\033[1;33m WARNING:\033[0m $1"
+    if [[ -n $2 ]] ; then
+        echo -e "          $2"
+    fi
+}
+
+function print_help {
+    # print help message
+    echo -e "\ntcpp - Generator for C/C++ template files\n"
+    echo -e "Usage:"
+    echo -e "  bash tcpp [OPTIONS]\n"
+    echo -e "Options:"
+    echo -e "  -h --help                            Shows this help message and exits"
+    echo -e "  -C --C-style                         Uses C-standard instead of C++-standard"
+    echo -e "                                       Is ignored in modes 'class' and 'multiple'"
+    echo -e "  -f --force                           Overwrites files that already exists"
+    echo -e "  -c CLASSNAME --class=CLASSNAME       Creates header and source templates for class"
+    echo -e "                                       if they do not exist already"
+    echo -e "                                       Files are named like class"
+    echo -e "  -m SOURCEFILE --main=SOURCEFILE      Creates sourcefile template for main-program"
+    echo -e "  -u F1 [...] --multiple=\"F1 [...]\"    Creates multiple files dwpending on suffix"
+    echo -e "                                       Using '-u' it must be last option in line"
+    echo -e "Examples:"
+    echo -e "  tcpp -c ClassName  -  creates files ClassName.h and ClassName.cpp if they does not exist"
+    echo -e "  tcpp -m main.cpp  -  creates main.cpp file that is an main-program"
+    echo -e "  tcpp --force -u file1.c file2.cpp file3.c file4.h  -  creates/overwrites files"
+}
+
+
+function make_file_header {
+    # generates comment-header for a file containing name of the file, date of creation and author name
+    # takes file name as parameter and prints header string
+    local fname=$1
+    local str="/*\n"
+    str="$str *   $fname\n"
+    str="$str *\n"
+    str="$str * Created on: $(date '+%^b %d, %Y')\n"
+    str="$str *     Author: $AUTHOR\n"
+    str="$str */\n"
+    echo "$str"
+}
+
+function make_main_body {
+    # generates file body of a main program
+    # takes filename and prints body string
+    local fname=$1
+    local str
+    if [[ ${fname##*.} == c ]] ; then
+        str="#include <stdio.h>\n\n"
+    else
+        str="#include <iostream>\n\n"
+        str="${str}using namespace std;\n\n\n"
+    fi
+    str="${str}int main(int argc, char* argv[]) {\n"
+    str="${str}    \n"
+    str="${str}    return 0;\n"
+    str="${str}}"
+    echo "$str"
+}
+
+function make_class_body {
+    # generates file body of a class file
+    # takes filename and prints body string
+    local fname=$1
+    local cname=${fname%.*}
+    local str
+    if [[ ${fname##*.} == h ]] ; then
+        str="#pragma once\n\n"
+        str="${str}class $cname {\n"
+        str="${str}    private:\n"
+        str="${str}        \n"
+        str="${str}    public:\n"
+        str="${str}        ${cname}();\n"
+        str="${str}        ~${cname}();\n"
+        str="${str}\n"
+        str="${str}        \n"
+        str="${str}};\n"
+    else    # .cpp
+        str="#include \"${cname}.h\"\n\n"
+        str="${str}${cname}::${cname}() {\n"
+        str="${str}    \n"
+        str="${str}}\n"
+        str="${str}\n"
+        str="${str}${cname}::~${cname}() {\n"
+        str="${str}    \n"
+        str="${str}}\n"
+    fi
+    echo "$str"
+}
+
+function make_multiple_body {
+    # generates file body of regular .h/.cpp/.c files
+    # takes filename and prints body string
+    local fname=$1
+    local str
+    if [[ ${fname##*.} == h ]] ; then
+        str="#pragma once\n\n"
+    elif [[ ${fname##*.} == cpp ]] ; then
+        str="#include <iostream>\n\n"
+        str="${str}using namespace std;\n\n"
+    elif [[ ${fname##*.} == c ]] ; then
+        str="#include <stdio.h>\n\n"
+    fi
+    echo "$str"
+}
+
+function make_class {
+    # generates class files if not existing or forced to overwrite
+    # takes class name
+    local cname=$1
+    local fname
+    local nu
+    local cnterr=0
+    if [[ ${cname##*.} == "h" || ${cname##*.} == "cpp" ]] ; then
+        fname[0]=$cname
+        nu=1
+    else
+        fname[0]=${cname}.h
+        fname[1]=${cname}.cpp
+        nu=2
+    fi
+    for ((i=0; i<nu; ++i)) ; do
+        if [[ -s ${fname[$i]} && $force_overwrite == no ]] ; then
+            warning_msg "File ${fname[$i]} already exists" "Use option --force to overwrite it"
+            (( ++cnterr ))
+        else
+            file_content="$(make_file_header ${fname[$i]})$(make_class_body ${fname[$i]})"
+
+            echo -e "$file_content" > ${fname[$i]} 
+        fi
+    done
+    echo "Created class $cname ($((nu-cnterr)))"
+}
+
+function make_main {
+    # generates main file if not existing or forced to overwrite
+    # takes file name to create
+    local fname=$1
+    if [[ ${fname##*.} == $fname ]] ; then   # no .suffix
+        if [[ $C_style == yes ]] ; then
+            fname=${fname}.c
+        else
+            fname=${fname}.cpp
+        fi
+    fi
+    if [[ -s $fname && $force_overwrite == no ]] ; then
+        warning_msg "File $fname already exists" "Use option --force to overwrite it"
+        return 1
+    fi
+
+    file_content="$(make_file_header $fname)$(make_main_body $fname)"
+
+    echo -e "$file_content" > $fname 
+    echo "Created main-file $fname"
+}
+
+function make_multiple {
+    # generates generic file if not existing or forced to overwrite
+    # takes file name to create
+    local fname=$1
+    if [[ -s $fname && $force_overwrite == no ]] ; then
+        warning_msg "File $fname already exists" "Use option --force to overwrite it"
+        return 1
+    fi
+    file_content="$(make_file_header $fname)$(make_multiple_body $fname)"
+
+    echo -e "$file_content" > $fname 
+    echo "Created file $fname"
+}
+
+for ((i=0; i<argc; ++i)) ; do
+    # analysing, checking and storing arguments for creation
+    case ${argv[$i]} in
+        -h | --help)
+            print_help
+            exit 0
+            ;;
+        -C | --C-style)
+            C_style=yes
+            ;;
+        -f | --force)
+            force_overwrite=yes
+            ;;
+        -c)
+            (( ++i ))
+            if [[ ${argv[$i]} == $CLASSNAMEPATTERN ]] ; then
+                class_list[$class_list_len]=${argv[$i]}
+                (( ++class_list_len ))
+            else
+                exit_msg "No valid class name: ${argv[$i]}"
+            fi
+            ;;
+        --class*)
+            cname=${argv[i]##--class=}
+            if [[ $cname == "" ]] ; then
+                exit_msg "No classname given"
+            elif [[ ${argv[$i]} == $cname ]] ; then
+                exit_msg "Invalid syntax: ${argv[$i]}"
+            elif [[ $cname == $CLASSNAMEPATTERN ]] ; then
+                class_list[$class_list_len]=$cname
+                (( ++class_list_len ))
+            else 
+                exit_msg "No valid class name: $cname"
+            fi
+            ;;
+        -m)
+            (( ++i ))
+            if [[ ${argv[$i]} == $MAINFILENAMEPATTERN ]] ; then
+                main_list[$main_list_len]=${argv[$i]}
+                (( ++main_list_len ))
+            else
+                exit_msg "No valid main-file name: ${argv[$i]}"
+            fi
+            ;;
+        --main*)
+            mname=${argv[i]##--main=}
+            if [[ $mname == "" ]] ; then
+                exit_msg "No main file given"
+            elif [[ ${argv[$i]} == $mname ]] ; then
+                exit_msg "Invalid syntax: ${argv[$i]}"
+            elif [[ $mname == $MAINFILENAMEPATTERN ]] ; then
+                main_list[$main_list_len]=$mname
+                (( ++main_list_len ))
+            else 
+                exit_msg "No valid main-file name: $mname"
+            fi
+            ;;
+        -u)
+            if [[ $i -eq $((argc-1)) ]] ; then
+                exit_msg "No files given for command ${argv[$i]}"
+            fi
+            for ((++i; i<argc; ++i)) ; do
+                fname=${argv[$i]}
+                if [[ $fname == $MULTIPLEFILENAMEPATTERN ]] ; then
+                    multiple_list[$multiple_list_len]=$fname
+                    (( ++multiple_list_len ))
+                else
+                    exit_msg "No valid file name: $fname"
+                fi
+            done
+            ;;
+        --multiple*)
+            fnames=${argv[i]##--multiple=}
+            if [[ $fnames == "" ]] ; then
+                exit_msg "No files given"
+            elif [[ ${argv[$i]} == $fnames ]] ; then
+                exit_msg "Invalid syntax: ${argv[$i]}"
+            fi
+            fname_list=($fnames)
+            for ((j=0; j<${#fname_list[*]}; ++j)) ; do
+                fname=${fname_list[$j]}
+                if [[ $fname == $MULTIPLEFILENAMEPATTERN ]] ; then
+                    multiple_list[$multiple_list_len]=$fname
+                    (( ++multiple_list_len ))
+                else
+                    exit_msg "No valid file name: $fname"
+                fi
+            done
+            ;;
+        *)
+            exit_msg "Unknown option: ${argv[$i]}"
+            ;;
+    esac
+done
+
+# creating files
+for fname in ${class_list[*]} ; do
+    make_class $fname
+done
+for fname in ${main_list[*]} ; do
+    make_main $fname
+done
+for fname in ${multiple_list[*]} ; do
+    make_multiple $fname
+done
