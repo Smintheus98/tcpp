@@ -24,3 +24,7 @@ For generating multiple independent and generic files type
 ```
 This is the only option really requiring file-suffixes (.c,.cpp,.h).
 When using with other options this one needs to be the last or use the other option syntax.
+
+### TODO
+* port script to easier language (Python or Nim)
+* export files structures to object notation files for easier changes (XML or JSON)
