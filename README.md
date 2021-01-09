@@ -8,7 +8,7 @@ For getting a help menu type
 bash tcpp -h
 ```
 To create a new class with generated header and source files type
-``
+```
 ./tcpp -c myclass       # -> myclass.h myclass.cpp
 ```
 For generating a main-program type
