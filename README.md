@@ -11,7 +11,7 @@ To create a new class with generated header and source files type
 ```
 ./tcpp -c myclass       # -> myclass.h myclass.cpp
 ```
-For generating a main-program type
+For generating a main-program type one of these
 ```
 ./tcpp -m main.cpp      # -> main.cpp
 ./tcpp -m main -f       # -> overwriting main.cpp
@@ -25,6 +25,6 @@ For generating multiple independent and generic files type
 This is the only option really requiring file-suffixes (.c,.cpp,.h).
 When using with other options this one needs to be the last or use the other option syntax.
 
-### TODO
+## TODO
 * port script to easier language (Python or Nim)
 * export files structures to object notation files for easier changes (XML or JSON)
