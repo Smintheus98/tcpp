@@ -57,12 +57,12 @@ function print_help {
     echo -e "                                       if they do not exist already"
     echo -e "                                       Files are named like class"
     echo -e "  -m SOURCEFILE --main=SOURCEFILE      Creates sourcefile template for main-program"
-    echo -e "  -u F1 [...] --multiple=\"F1 [...]\"    Creates multiple files dwpending on suffix"
-    echo -e "                                       Using '-u' it must be last option in line"
+    echo -e "  -l F1 [...] --multiple=\"F1 [...]\"    Creates multiple files depending on suffix"
+    echo -e "                                       Using '-l' it must be last option in line"
     echo -e "Examples:"
-    echo -e "  tcpp -c ClassName  -  creates files ClassName.h and ClassName.cpp if they does not exist"
-    echo -e "  tcpp -m main.cpp  -  creates main.cpp file that is an main-program"
-    echo -e "  tcpp --force -u file1.c file2.cpp file3.c file4.h  -  creates/overwrites files"
+    echo -e "  ./tcpp -c ClassName  -  creates files ClassName.h and ClassName.cpp if they does not exist"
+    echo -e "  ./tcpp -m main.cpp  -  creates main.cpp file that is an main-program"
+    echo -e "  ./tcpp --force -l file1.c file2.cpp file3.c file4.h  -  creates/overwrites files"
 }
 
 
@@ -264,7 +264,7 @@ for ((i=0; i<argc; ++i)) ; do
                 exit_msg "No valid main-file name: $mname"
             fi
             ;;
-        -u)
+        -l)
             if [[ $i -eq $((argc-1)) ]] ; then
                 exit_msg "No files given for command ${argv[$i]}"
             fi
