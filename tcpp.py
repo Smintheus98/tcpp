@@ -25,7 +25,7 @@ def error_message(errmsg):
 
 def warning_message(warnmsg, scndline = ""):
     print(" WARNING:", warnmsg)
-    if len(scndline) > 0:
+    if scndline != "":
         print("    ", scndline)
     
 def help_message():
@@ -113,7 +113,7 @@ def build_class(name):
     cname = name.split(".")[0]
     suffix = "" if len(name.split(".")) <= 1 else name.split(".")[1]
     fnames = []
-    count_error = 0
+    count_created = 0
     if suffix:
         fnames.append(cname + ".h")
         fnames.append(cname + ".cpp")
@@ -121,7 +121,10 @@ def build_class(name):
         fnames.append(cname + suffix)
 
     for fname in fnames:
-        pass
+        if os.path.isfile(fname) and os.path.getsize(fname) > 0 and not force_overwrite_flag:
+            warning_message("File {} already exists".format(fname), "Use option --force to overwrite it")
+        else:
+            pass
 
 def build_main(fname):
     pass
